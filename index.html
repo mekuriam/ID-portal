@@ -91,6 +91,7 @@
             margin-bottom: 20px;
             border-bottom: 2px solid var(--border);
             padding-bottom: 10px;
+            flex-wrap: wrap;
         }
 
         .sub-btn {
@@ -267,6 +268,24 @@
             gap: 8px;
         }
 
+        /* Comment Cards */
+        .comment-card {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .admin-reply-box {
+            background: #eff6ff;
+            border-left: 3px solid var(--primary);
+            padding: 10px 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+
         .hidden { display: none !important; }
 
         .alert {
@@ -306,6 +325,7 @@
         <div class="sub-tabs">
             <button class="sub-btn active" id="subFindBtn" onclick="switchAccessSub('find')">🔍 Find Out Yours</button>
             <button class="sub-btn" id="subSuggestBtn" onclick="switchAccessSub('suggest')">✍️ Suggestion</button>
+            <button class="sub-btn" id="subCommentsBtn" onclick="switchAccessSub('comments')">💬 Comments & Feedback</button>
         </div>
 
         <!-- SECTION 1: FIND OUT YOURS -->
@@ -330,7 +350,6 @@
 
             <form id="suggestionForm" onsubmit="submitSuggestion(event)">
                 <div class="form-grid">
-                    <!-- Submitter Details -->
                     <div class="form-group">
                         <label>Your ID (Sender) *</label>
                         <input type="text" id="sugSubmitterId" required placeholder="Enter your ID">
@@ -339,8 +358,6 @@
                         <label>Your Full Name (Sender) *</label>
                         <input type="text" id="sugSubmitterName" required placeholder="Enter your full name">
                     </div>
-
-                    <!-- Suggested Record Details -->
                     <div class="form-group">
                         <label>Suggested ID Number *</label>
                         <input type="text" id="sugId" required placeholder="e.g., Enter their ID">
@@ -360,6 +377,35 @@
                 </div>
                 <button type="submit" class="btn btn-primary">Submit for Approval</button>
             </form>
+        </div>
+
+        <!-- SECTION 3: COMMENTS & FEEDBACK -->
+        <div id="commentsSection" class="card hidden">
+            <h2>Comments & Feedback</h2>
+            <p style="color: var(--muted); margin-bottom: 15px;">Share your feedback about the system. Everyone can view public comments and administrator replies.</p>
+            
+            <div id="commentAlert"></div>
+
+            <form id="commentForm" onsubmit="submitComment(event)" style="margin-bottom: 25px;">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Your ID *</label>
+                        <input type="text" id="comUserId" required placeholder="Enter your ID">
+                    </div>
+                    <div class="form-group">
+                        <label>Your Full Name *</label>
+                        <input type="text" id="comUserName" required placeholder="Enter your full name">
+                    </div>
+                    <div class="form-group full">
+                        <label>Your Comment / Feedback *</label>
+                        <textarea id="comText" rows="3" required placeholder="Write your thoughts, suggestions, or feedback here..."></textarea>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Post Comment</button>
+            </form>
+
+            <h3 style="font-size: 1.1rem; margin-bottom: 15px;">Community Feedback Feed</h3>
+            <div id="publicCommentsList"></div>
         </div>
     </div>
 
@@ -381,11 +427,14 @@
 
         <!-- ADMIN DASHBOARD (UNLOCKED) -->
         <div id="adminDashboard" class="hidden">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                 <div class="sub-tabs" style="margin-bottom: 0; border: none;">
-                    <button class="sub-btn active" id="subManageBtn" onclick="switchAdminSub('manage')">⚙️ Manage & Arrange Records</button>
+                    <button class="sub-btn active" id="subManageBtn" onclick="switchAdminSub('manage')">⚙️ Manage Records</button>
                     <button class="sub-btn" id="subApproveBtn" onclick="switchAdminSub('approve')">
-                        ✅ Approval Section <span class="badge" id="pendingCountBadge">0</span>
+                        ✅ Approvals <span class="badge" id="pendingCountBadge">0</span>
+                    </button>
+                    <button class="sub-btn" id="subAdminCommentsBtn" onclick="switchAdminSub('adminComments')">
+                        💬 Manage Comments <span class="badge" id="commentCountBadge">0</span>
                     </button>
                 </div>
                 <button class="btn btn-danger" style="padding: 6px 12px; font-size: 0.8rem;" onclick="lockAdmin()">Lock Admin</button>
@@ -436,6 +485,13 @@
                 <p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 15px;">Review suggestions submitted by Access users, including who submitted them.</p>
                 <div id="pendingRecordsList"></div>
             </div>
+
+            <!-- ADMIN SECTION 3: MANAGE COMMENTS -->
+            <div id="adminCommentsSection" class="card hidden">
+                <h2>Manage User Comments</h2>
+                <p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 15px;">Reply to user feedback or remove inappropriate comments.</p>
+                <div id="adminCommentsList"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -443,7 +499,6 @@
 <script>
     // ==========================================
     // FIREBASE CLOUD CONFIGURATION
-    // (Replace these with your actual Firebase keys)
     // ==========================================
     const firebaseConfig = {
         apiKey: "AIzaSyClmCmOWNk63JhAgqZ0YpUmyI38fbLzeL4",
@@ -464,34 +519,38 @@
     let isAdminUnlocked = false;
     let approvedRecords = [];
     let pendingRecords = [];
+    let comments = [];
 
-    // REAL-TIME CLOUD SYNC: Automatically updates across all devices instantly
+    // REAL-TIME CLOUD SYNC
     db.collection("portal_data").doc("records").onSnapshot((doc) => {
         if (doc.exists) {
             const data = doc.data();
             approvedRecords = data.approved || [];
             pendingRecords = data.pending || [];
+            comments = data.comments || [];
             if (isAdminUnlocked) {
                 renderAdminLists();
             } else {
                 updateBadges();
             }
             if(typeof searchRecord === 'function') searchRecord();
+            renderPublicComments();
         }
     });
 
-    // Save changes directly to the cloud database
+    // Save data to cloud database
     function saveData() {
         db.collection("portal_data").doc("records").set({
             approved: approvedRecords,
-            pending: pendingRecords
+            pending: pendingRecords,
+            comments: comments
         }).catch((error) => {
             console.error("Error saving data: ", error);
         });
         updateBadges();
     }
 
-    // Helper: Automatically compress and resize uploaded photos so storage never fills up
+    // Helper: Automatically compress and resize uploaded photos
     function readImageAsBase64(fileInput) {
         return new Promise((resolve) => {
             const file = fileInput.files[0];
@@ -504,7 +563,7 @@
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const MAX_SIZE = 300; // Resizes photo neatly to max 300px
+                    const MAX_SIZE = 300;
                     let width = img.width;
                     let height = img.height;
 
@@ -523,7 +582,6 @@
                     canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
-                    // Compress to lightweight JPEG (70% quality)
                     resolve(canvas.toDataURL('image/jpeg', 0.7));
                 };
                 img.src = e.target.result;
@@ -550,17 +608,22 @@
     function switchAccessSub(sub) {
         document.getElementById('subFindBtn').classList.toggle('active', sub === 'find');
         document.getElementById('subSuggestBtn').classList.toggle('active', sub === 'suggest');
+        document.getElementById('subCommentsBtn').classList.toggle('active', sub === 'comments');
 
         document.getElementById('findSection').classList.toggle('hidden', sub !== 'find');
         document.getElementById('suggestSection').classList.toggle('hidden', sub !== 'suggest');
+        document.getElementById('commentsSection').classList.toggle('hidden', sub !== 'comments');
+        if(sub === 'comments') renderPublicComments();
     }
 
     function switchAdminSub(sub) {
         document.getElementById('subManageBtn').classList.toggle('active', sub === 'manage');
         document.getElementById('subApproveBtn').classList.toggle('active', sub === 'approve');
+        document.getElementById('subAdminCommentsBtn').classList.toggle('active', sub === 'adminComments');
 
         document.getElementById('adminManageSection').classList.toggle('hidden', sub !== 'manage');
         document.getElementById('adminApprovalSection').classList.toggle('hidden', sub !== 'approve');
+        document.getElementById('adminCommentsSection').classList.toggle('hidden', sub !== 'adminComments');
         renderAdminLists();
     }
 
@@ -588,7 +651,7 @@
     }
 
     // ==========================================
-    // ACCESS TAB: SEARCH ("FIND OUT YOURS")
+    // ACCESS TAB: SEARCH
     // ==========================================
     function searchRecord() {
         const query = document.getElementById('searchIdInput').value.trim().toLowerCase();
@@ -649,7 +712,60 @@
     }
 
     // ==========================================
-    // ADMIN TAB: ADD, EDIT, ARRANGE & DELETE
+    // ACCESS TAB: SUBMIT COMMENT & FEEDBACK
+    // ==========================================
+    function submitComment(e) {
+        e.preventDefault();
+        const userId = document.getElementById('comUserId').value.trim();
+        const userName = document.getElementById('comUserName').value.trim();
+        const text = document.getElementById('comText').value.trim();
+
+        comments.unshift({
+            id: Date.now(),
+            userId,
+            userName,
+            text,
+            reply: "",
+            createdAt: new Date().toLocaleString()
+        });
+
+        saveData();
+        document.getElementById('commentForm').reset();
+        renderPublicComments();
+
+        const alertBox = document.getElementById('commentAlert');
+        alertBox.innerHTML = `<div class="alert alert-success">💬 Comment posted successfully!</div>`;
+        setTimeout(() => alertBox.innerHTML = '', 4000);
+    }
+
+    function renderPublicComments() {
+        const list = document.getElementById('publicCommentsList');
+        if (!list) return;
+
+        if (comments.length === 0) {
+            list.innerHTML = `<p style="color: var(--muted);">No comments yet. Be the first to leave feedback!</p>`;
+            return;
+        }
+
+        list.innerHTML = comments.map(c => `
+            <div class="comment-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <strong>👤 ${escapeHTML(c.userName)} <span style="font-size:0.8rem; color:var(--muted); font-weight:normal;">(ID: ${escapeHTML(c.userId)})</span></strong>
+                    <small style="color: var(--muted);">${c.createdAt}</small>
+                </div>
+                <p style="color: var(--text);">${escapeHTML(c.text)}</p>
+                ${c.reply ? `
+                    <div class="admin-reply-box">
+                        <strong>👑 Admin Reply:</strong>
+                        <p>${escapeHTML(c.reply)}</p>
+                    </div>
+                ` : ''}
+            </div>
+        `).join('');
+    }
+
+    // ==========================================
+    // ADMIN TAB: RECORDS & COMMENTS MANAGEMENT
     // ==========================================
     async function saveAdminRecord(e) {
         e.preventDefault();
@@ -711,9 +827,6 @@
         document.getElementById('admExistingPhoto').value = "";
     }
 
-    // ==========================================
-    // ADMIN TAB: APPROVAL SECTION
-    // ==========================================
     function approveSuggestion(index) {
         const item = pendingRecords[index];
         const existingIndex = approvedRecords.findIndex(r => r.id.toLowerCase() === item.id.toLowerCase());
@@ -744,21 +857,40 @@
         }
     }
 
+    function saveAdminReply(commentId) {
+        const replyText = document.getElementById(`replyInput_${commentId}`).value.trim();
+        const comment = comments.find(c => c.id === commentId);
+        if (comment) {
+            comment.reply = replyText;
+            saveData();
+            renderAdminLists();
+        }
+    }
+
+    function deleteComment(commentId) {
+        if (confirm("Are you sure you want to delete this comment?")) {
+            comments = comments.filter(c => c.id !== commentId);
+            saveData();
+            renderAdminLists();
+        }
+    }
+
     // ==========================================
     // RENDER UI LISTS
     // ==========================================
     function updateBadges() {
         document.getElementById('pendingCountBadge').innerText = pendingRecords.length;
+        document.getElementById('commentCountBadge').innerText = comments.length;
         document.getElementById('liveCount').innerText = approvedRecords.length;
     }
 
     function renderAdminLists() {
         updateBadges();
 
-        // 1. Render Live Records
+        // 1. Live Records
         const liveList = document.getElementById('liveRecordsList');
         if (approvedRecords.length === 0) {
-            liveList.innerHTML = `<p style="color: var(--muted);">No records added yet. Use the form above to add your first record.</p>`;
+            liveList.innerHTML = `<p style="color: var(--muted);">No records added yet.</p>`;
         } else {
             liveList.innerHTML = approvedRecords.map((rec, idx) => `
                 <div class="record-item">
@@ -771,8 +903,8 @@
                         </div>
                     </div>
                     <div class="action-btns">
-                        <button class="btn" style="background:#e2e8f0; padding:6px 10px;" onclick="moveRecord(${idx}, -1)" title="Move Up">↑</button>
-                        <button class="btn" style="background:#e2e8f0; padding:6px 10px;" onclick="moveRecord(${idx}, 1)" title="Move Down">↓</button>
+                        <button class="btn" style="background:#e2e8f0; padding:6px 10px;" onclick="moveRecord(${idx}, -1)">↑</button>
+                        <button class="btn" style="background:#e2e8f0; padding:6px 10px;" onclick="moveRecord(${idx}, 1)">↓</button>
                         <button class="btn btn-warning" style="padding:6px 12px;" onclick="editRecord(${idx})">Edit</button>
                         <button class="btn btn-danger" style="padding:6px 12px;" onclick="deleteRecord(${idx})">Delete</button>
                     </div>
@@ -780,10 +912,10 @@
             `).join('');
         }
 
-        // 2. Render Pending Suggestions with Submitter Info
+        // 2. Pending Suggestions
         const pendingList = document.getElementById('pendingRecordsList');
         if (pendingRecords.length === 0) {
-            pendingList.innerHTML = `<p style="color: var(--muted);">No pending suggestions waiting for approval.</p>`;
+            pendingList.innerHTML = `<p style="color: var(--muted);">No pending suggestions.</p>`;
         } else {
             pendingList.innerHTML = pendingRecords.map((item, idx) => `
                 <div class="record-item" style="border-left: 4px solid var(--warning);">
@@ -791,12 +923,11 @@
                         <img src="${item.photo || PLACEHOLDER_IMG}" class="thumb">
                         <div>
                             <p style="font-size: 0.8rem; font-weight: 600; color: var(--primary); margin-bottom: 3px;">
-                                👤 Suggested by: ${escapeHTML(item.submitterName)} (ID: ${escapeHTML(item.submitterId)})
+                                👤 By: ${escapeHTML(item.submitterName)} (ID: ${escapeHTML(item.submitterId)})
                             </p>
                             <span class="profile-id">Target ID: ${escapeHTML(item.id)}</span>
                             <strong>${escapeHTML(item.name)}</strong>
                             <p style="font-size: 0.85rem; color: var(--text);">${escapeHTML(item.description)}</p>
-                            <small style="color: var(--muted);">Time: ${item.submittedAt}</small>
                         </div>
                     </div>
                     <div class="action-btns">
@@ -805,6 +936,29 @@
                     </div>
                 </div>
             `).join('');
+        }
+
+        // 3. Admin Comments Management
+        const adminComList = document.getElementById('adminCommentsList');
+        if (adminComList) {
+            if (comments.length === 0) {
+                adminComList.innerHTML = `<p style="color: var(--muted);">No comments submitted yet.</p>`;
+            } else {
+                adminComList.innerHTML = comments.map(c => `
+                    <div class="comment-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <strong>👤 ${escapeHTML(c.userName)} (ID: ${escapeHTML(c.userId)})</strong>
+                            <button class="btn btn-danger" style="padding: 4px 8px; font-size: 0.75rem;" onclick="deleteComment(${c.id})">Delete Comment</button>
+                        </div>
+                        <p style="margin-bottom: 10px; color: var(--text);">${escapeHTML(c.text)}</p>
+                        
+                        <div style="display: flex; gap: 8px; margin-top: 10px;">
+                            <input type="text" id="replyInput_${c.id}" value="${escapeHTML(c.reply || '')}" placeholder="Type admin reply...">
+                            <button class="btn btn-primary" style="padding: 6px 14px; white-space: nowrap;" onclick="saveAdminReply(${c.id})">Save Reply</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
         }
     }
 
@@ -816,6 +970,7 @@
     }
 
     updateBadges();
+    renderPublicComments();
 </script>
 
 </body>
