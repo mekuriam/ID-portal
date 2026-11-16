@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ID Information & Verification Portal</title>
+    
+    <!-- Firebase App (Core) SDK & Firestore SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
     <style>
         :root {
             --primary: #2563eb;
@@ -338,7 +343,7 @@
                     <!-- Suggested Record Details -->
                     <div class="form-group">
                         <label>Suggested ID Number *</label>
-                        <input type="text" id="sugId" required placeholder="e.g., 02249">
+                        <input type="text" id="sugId" required placeholder="e.g., Enter their ID">
                     </div>
                     <div class="form-group">
                         <label>Suggested Full Name *</label>
@@ -437,18 +442,52 @@
 
 <script>
     // ==========================================
-    // CONFIGURATION & LOCAL STORAGE DATABASE
+    // FIREBASE CLOUD CONFIGURATION
+    // (Replace these with your actual Firebase keys)
     // ==========================================
-    const ADMIN_PIN = "1234"; 
+    const firebaseConfig = {
+        apiKey: "AIzaSyClmCmOWNk63JhAgqZ0YpUmyI38fbLzeL4",
+        authDomain: "id-prtal.firebaseapp.com",
+        projectId: "id-prtal",
+        storageBucket: "id-prtal.appspot.com",
+        messagingSenderId: "40097222964",
+        appId: "1:40097222964:web:d9d954f4fcf47c17871561"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const ADMIN_PIN = "64414"; 
     const PLACEHOLDER_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='1.5'%3E%3Crect width='18' height='18' x='3' y='3' rx='2'/%3E%3Ccircle cx='9' cy='9' r='2'/%3E%3Cpath d='m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21'/%3E%3C/svg%3E";
 
     let isAdminUnlocked = false;
-    let approvedRecords = JSON.parse(localStorage.getItem('portal_approved')) || [];
-    let pendingRecords = JSON.parse(localStorage.getItem('portal_pending')) || [];
+    let approvedRecords = [];
+    let pendingRecords = [];
 
+    // REAL-TIME CLOUD SYNC: Automatically updates across all devices instantly
+    db.collection("portal_data").doc("records").onSnapshot((doc) => {
+        if (doc.exists) {
+            const data = doc.data();
+            approvedRecords = data.approved || [];
+            pendingRecords = data.pending || [];
+            if (isAdminUnlocked) {
+                renderAdminLists();
+            } else {
+                updateBadges();
+            }
+            if(typeof searchRecord === 'function') searchRecord();
+        }
+    });
+
+    // Save changes directly to the cloud database
     function saveData() {
-        localStorage.setItem('portal_approved', JSON.stringify(approvedRecords));
-        localStorage.setItem('portal_pending', JSON.stringify(pendingRecords));
+        db.collection("portal_data").doc("records").set({
+            approved: approvedRecords,
+            pending: pendingRecords
+        }).catch((error) => {
+            console.error("Error saving data: ", error);
+        });
         updateBadges();
     }
 
