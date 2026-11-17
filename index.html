@@ -103,6 +103,9 @@
             cursor: pointer;
             color: var(--text);
             position: relative;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
 
         .sub-btn.active {
@@ -117,6 +120,23 @@
             padding: 2px 7px;
             border-radius: 99px;
             margin-left: 6px;
+        }
+
+        /* Blinking Red & Green Animation */
+        @keyframes blinkRedGreen {
+            0% { color: #dc2626; } /* Red */
+            50% { color: #16a34a; } /* Green */
+            100% { color: #dc2626; }
+        }
+
+        .blinking-text {
+            animation: blinkRedGreen 1.2s infinite;
+            font-weight: 800;
+            font-size: 0.72rem;
+            background: #fef2f2;
+            border: 1px solid #fca5a5;
+            padding: 2px 6px;
+            border-radius: 4px;
         }
 
         /* Cards & Forms */
@@ -268,7 +288,19 @@
             gap: 8px;
         }
 
-        /* Comment Cards */
+        /* Graphic Update & Comment Cards */
+        .update-card {
+            background: #f8fafc;
+            border-left: 4px solid var(--primary);
+            border-top: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 12px;
+            position: relative;
+        }
+
         .comment-card {
             background: #f8fafc;
             border: 1px solid var(--border);
@@ -324,6 +356,9 @@
     <div id="accessSection">
         <div class="sub-tabs">
             <button class="sub-btn active" id="subFindBtn" onclick="switchAccessSub('find')">🔍 Find Out Yours</button>
+            <button class="sub-btn" id="subUpdatesBtn" onclick="switchAccessSub('updates')">
+                📢 Updates <span id="updateBlinkingBadge" class="hidden blinking-text">NEW UPDATES AVAILABLE</span>
+            </button>
             <button class="sub-btn" id="subSuggestBtn" onclick="switchAccessSub('suggest')">✍️ Suggestion</button>
             <button class="sub-btn" id="subCommentsBtn" onclick="switchAccessSub('comments')">💬 Comments & Feedback</button>
         </div>
@@ -331,7 +366,7 @@
         <!-- SECTION 1: FIND OUT YOURS -->
         <div id="findSection" class="card">
             <h2>Find Out Yours</h2>
-            <p style="color: var(--muted); margin-bottom: 15px;">Enter your assigned ID below to view your verified profile and details.</p>
+            <p style="color: var(--muted); margin-bottom: 15px;">IDዎትን በማስገባት ጉድዎን ይመልከቱ! IDው ያልተመዘገበ ጉደኛ ጀለስ ካለ Suggestion ላይ ጥቆማ ያቅርቡበት!!</p>
             
             <div style="display: flex; gap: 10px;">
                 <input type="text" id="searchIdInput" placeholder="Enter your ID (e.g., 02249)..." onkeypress="if(event.key==='Enter') searchRecord()">
@@ -341,10 +376,17 @@
             <div id="searchResultArea"></div>
         </div>
 
-        <!-- SECTION 2: SUGGESTION -->
+        <!-- SECTION 2: UPDATES (NEW) -->
+        <div id="updatesSection" class="card hidden">
+            <h2>ምን አዲስ አለ?</h2>
+            <p style="color: var(--muted); margin-bottom: 15px;">አዳዲስ ክስተቶች እንዲሁም ማስታወቂያዎች (Place your Ad here)</p>
+            <div id="publicUpdatesList"></div>
+        </div>
+
+        <!-- SECTION 3: SUGGESTION -->
         <div id="suggestSection" class="card hidden">
             <h2>Submit a Suggestion or Update</h2>
-            <p style="color: var(--muted); margin-bottom: 15px;">Please provide your details as the sender, along with the ID information you are suggesting. All entries require Admin approval.</p>
+            <p style="color: var(--muted); margin-bottom: 15px;">በቅርብ የሚያውቁት ጉደኛ ጀለስ አለ? እንግዲያው እዚህ ያቃጥሩበት!!</p>
             
             <div id="suggestAlert"></div>
 
@@ -360,7 +402,7 @@
                     </div>
                     <div class="form-group">
                         <label>Suggested ID Number *</label>
-                        <input type="text" id="sugId" required placeholder="e.g., Enter their ID">
+                        <input type="text" id="sugId" required placeholder="e.g., Enter their ID ">
                     </div>
                     <div class="form-group">
                         <label>Suggested Full Name *</label>
@@ -379,10 +421,10 @@
             </form>
         </div>
 
-        <!-- SECTION 3: COMMENTS & FEEDBACK -->
+        <!-- SECTION 4: COMMENTS & FEEDBACK -->
         <div id="commentsSection" class="card hidden">
             <h2>Comments & Feedback</h2>
-            <p style="color: var(--muted); margin-bottom: 15px;">Share your feedback about the system. Everyone can view public comments and administrator replies.</p>
+            <p style="color: var(--muted); margin-bottom: 15px;">ምን ይጨመር, ምን ይቀነስ, ምን ይሻሻል</p>
             
             <div id="commentAlert"></div>
 
@@ -433,6 +475,9 @@
                     <button class="sub-btn" id="subApproveBtn" onclick="switchAdminSub('approve')">
                         ✅ Approvals <span class="badge" id="pendingCountBadge">0</span>
                     </button>
+                    <button class="sub-btn" id="subAdminUpdatesBtn" onclick="switchAdminSub('adminUpdates')">
+                        📢 Manage Updates <span class="badge" id="updateCountBadge">0</span>
+                    </button>
                     <button class="sub-btn" id="subAdminCommentsBtn" onclick="switchAdminSub('adminComments')">
                         💬 Manage Comments <span class="badge" id="commentCountBadge">0</span>
                     </button>
@@ -449,7 +494,7 @@
                         <div class="form-grid">
                             <div class="form-group">
                                 <label>ID Number *</label>
-                                <input type="text" id="admId" required placeholder="e.g., ID-101">
+                                <input type="text" id="admId" required placeholder="e.g., 02249">
                             </div>
                             <div class="form-group">
                                 <label>Full Name *</label>
@@ -486,7 +531,24 @@
                 <div id="pendingRecordsList"></div>
             </div>
 
-            <!-- ADMIN SECTION 3: MANAGE COMMENTS -->
+            <!-- ADMIN SECTION 3: MANAGE UPDATES (NEW) -->
+            <div id="adminUpdatesSection" class="card hidden">
+                <h2>Post & Manage System Updates</h2>
+                <p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 15px;">Post announcements for all users. Multiple updates will be displayed as an attractive bullet list.</p>
+                
+                <form id="adminUpdateForm" onsubmit="postSystemUpdate(event)" style="margin-bottom: 25px;">
+                    <div class="form-group full">
+                        <label>New Announcement / Update Message *</label>
+                        <textarea id="admUpdateText" rows="3" required placeholder="Type the update details here..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Publish Update</button>
+                </form>
+
+                <h3 style="font-size: 1.1rem; margin-bottom: 10px;">Active Updates</h3>
+                <div id="adminUpdatesList"></div>
+            </div>
+
+            <!-- ADMIN SECTION 4: MANAGE COMMENTS -->
             <div id="adminCommentsSection" class="card hidden">
                 <h2>Manage User Comments</h2>
                 <p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 15px;">Reply to user feedback or remove inappropriate comments.</p>
@@ -520,6 +582,7 @@
     let approvedRecords = [];
     let pendingRecords = [];
     let comments = [];
+    let updates = [];
 
     // REAL-TIME CLOUD SYNC
     db.collection("portal_data").doc("records").onSnapshot((doc) => {
@@ -528,6 +591,8 @@
             approvedRecords = data.approved || [];
             pendingRecords = data.pending || [];
             comments = data.comments || [];
+            updates = data.updates || [];
+
             if (isAdminUnlocked) {
                 renderAdminLists();
             } else {
@@ -535,6 +600,7 @@
             }
             if(typeof searchRecord === 'function') searchRecord();
             renderPublicComments();
+            renderPublicUpdates();
         }
     });
 
@@ -543,7 +609,8 @@
         db.collection("portal_data").doc("records").set({
             approved: approvedRecords,
             pending: pendingRecords,
-            comments: comments
+            comments: comments,
+            updates: updates
         }).catch((error) => {
             console.error("Error saving data: ", error);
         });
@@ -607,22 +674,28 @@
 
     function switchAccessSub(sub) {
         document.getElementById('subFindBtn').classList.toggle('active', sub === 'find');
+        document.getElementById('subUpdatesBtn').classList.toggle('active', sub === 'updates');
         document.getElementById('subSuggestBtn').classList.toggle('active', sub === 'suggest');
         document.getElementById('subCommentsBtn').classList.toggle('active', sub === 'comments');
 
         document.getElementById('findSection').classList.toggle('hidden', sub !== 'find');
+        document.getElementById('updatesSection').classList.toggle('hidden', sub !== 'updates');
         document.getElementById('suggestSection').classList.toggle('hidden', sub !== 'suggest');
         document.getElementById('commentsSection').classList.toggle('hidden', sub !== 'comments');
+        
         if(sub === 'comments') renderPublicComments();
+        if(sub === 'updates') renderPublicUpdates();
     }
 
     function switchAdminSub(sub) {
         document.getElementById('subManageBtn').classList.toggle('active', sub === 'manage');
         document.getElementById('subApproveBtn').classList.toggle('active', sub === 'approve');
+        document.getElementById('subAdminUpdatesBtn').classList.toggle('active', sub === 'adminUpdates');
         document.getElementById('subAdminCommentsBtn').classList.toggle('active', sub === 'adminComments');
 
         document.getElementById('adminManageSection').classList.toggle('hidden', sub !== 'manage');
         document.getElementById('adminApprovalSection').classList.toggle('hidden', sub !== 'approve');
+        document.getElementById('adminUpdatesSection').classList.toggle('hidden', sub !== 'adminUpdates');
         document.getElementById('adminCommentsSection').classList.toggle('hidden', sub !== 'adminComments');
         renderAdminLists();
     }
@@ -681,7 +754,42 @@
     }
 
     // ==========================================
-    // ACCESS TAB: SUBMIT SUGGESTION
+    // ACCESS TAB: UPDATES RENDERING
+    // ==========================================
+    function renderPublicUpdates() {
+        const list = document.getElementById('publicUpdatesList');
+        const badge = document.getElementById('updateBlinkingBadge');
+        if (!list) return;
+
+        // Toggle Blinking Badge based on whether updates exist
+        if (updates.length > 0) {
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+
+        if (updates.length === 0) {
+            list.innerHTML = `<p style="color: var(--muted); font-style: italic;">ለጊዜው ምንም አዲስ ነገር የለም!</p>`;
+            return;
+        }
+
+        list.innerHTML = `
+            <ul style="list-style-type: none; padding: 0;">
+                ${updates.map(u => `
+                    <li class="update-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <strong style="color: var(--primary);">📢 Announcement</strong>
+                            <small style="color: var(--muted);">${u.createdAt}</small>
+                        </div>
+                        <p style="color: var(--text); font-size: 0.98rem; white-space: pre-line;">${escapeHTML(u.text)}</p>
+                    </li>
+                `).join('')}
+            </ul>
+        `;
+    }
+
+    // ==========================================
+    // ACCESS TAB: SUBMIT SUGGESTION & COMMENTS
     // ==========================================
     async function submitSuggestion(e) {
         e.preventDefault();
@@ -711,9 +819,6 @@
         setTimeout(() => alertBox.innerHTML = '', 4000);
     }
 
-    // ==========================================
-    // ACCESS TAB: SUBMIT COMMENT & FEEDBACK
-    // ==========================================
     function submitComment(e) {
         e.preventDefault();
         const userId = document.getElementById('comUserId').value.trim();
@@ -765,7 +870,7 @@
     }
 
     // ==========================================
-    // ADMIN TAB: RECORDS & COMMENTS MANAGEMENT
+    // ADMIN TAB: MANAGEMENT ACTIONS
     // ==========================================
     async function saveAdminRecord(e) {
         e.preventDefault();
@@ -857,6 +962,31 @@
         }
     }
 
+    // Post System Update
+    function postSystemUpdate(e) {
+        e.preventDefault();
+        const text = document.getElementById('admUpdateText').value.trim();
+        if(!text) return;
+
+        updates.unshift({
+            id: Date.now(),
+            text: text,
+            createdAt: new Date().toLocaleString()
+        });
+
+        saveData();
+        document.getElementById('adminUpdateForm').reset();
+        renderAdminLists();
+    }
+
+    function deleteUpdate(updateId) {
+        if(confirm("Are you sure you want to delete this update?")) {
+            updates = updates.filter(u => u.id !== updateId);
+            saveData();
+            renderAdminLists();
+        }
+    }
+
     function saveAdminReply(commentId) {
         const replyText = document.getElementById(`replyInput_${commentId}`).value.trim();
         const comment = comments.find(c => c.id === commentId);
@@ -876,11 +1006,12 @@
     }
 
     // ==========================================
-    // RENDER UI LISTS
+    // RENDER UI LISTS & BADGES
     // ==========================================
     function updateBadges() {
         document.getElementById('pendingCountBadge').innerText = pendingRecords.length;
         document.getElementById('commentCountBadge').innerText = comments.length;
+        document.getElementById('updateCountBadge').innerText = updates.length;
         document.getElementById('liveCount').innerText = approvedRecords.length;
     }
 
@@ -938,7 +1069,25 @@
             `).join('');
         }
 
-        // 3. Admin Comments Management
+        // 3. Admin Updates Management
+        const adminUpList = document.getElementById('adminUpdatesList');
+        if (adminUpList) {
+            if (updates.length === 0) {
+                adminUpList.innerHTML = `<p style="color: var(--muted);">No updates posted yet.</p>`;
+            } else {
+                adminUpList.innerHTML = updates.map(u => `
+                    <div class="record-item" style="border-left: 4px solid var(--primary);">
+                        <div style="flex: 1;">
+                            <small style="color: var(--muted);">${u.createdAt}</small>
+                            <p style="color: var(--text); margin-top: 4px; white-space: pre-line;">${escapeHTML(u.text)}</p>
+                        </div>
+                        <button class="btn btn-danger" style="padding: 6px 12px;" onclick="deleteUpdate(${u.id})">Delete</button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // 4. Admin Comments Management
         const adminComList = document.getElementById('adminCommentsList');
         if (adminComList) {
             if (comments.length === 0) {
@@ -971,6 +1120,7 @@
 
     updateBadges();
     renderPublicComments();
+    renderPublicUpdates();
 </script>
 
 </body>
